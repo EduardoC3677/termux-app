@@ -27,6 +27,7 @@
     <uses-permission android:name="android.permission.WAKE_LOCK" />
     <uses-permission android:name="android.permission.VIBRATE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE_SPECIAL_USE" />
     <uses-permission android:name="android.permission.REQUEST_IGNORE_BATTERY_OPTIMIZATIONS" />
     <uses-permission android:name="android.permission.SYSTEM_ALERT_WINDOW" />
     <uses-permission android:name="android.permission.READ_LOGS" />
@@ -195,7 +196,8 @@
 
         <service
             android:name=".app.TermuxService"
-            android:exported="false" />
+            android:exported="false"
+            android:foregroundServiceType="specialUse" />
 
         <service
             android:name=".app.RunCommandService"
@@ -228,6 +230,16 @@
 
         <meta-data
             android:name="com.sec.android.support.multiwindow"
+            android:value="true" />
+
+        <!-- Additional Samsung DeX compatibility for Android 13+ -->
+        <meta-data
+            android:name="com.samsung.android.dex.launcher.support"
+            android:value="true" />
+
+        <!-- Disable aggressive battery optimization hints -->
+        <meta-data
+            android:name="android.notch_support"
             android:value="true" />
 
     </application>

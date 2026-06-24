@@ -8,12 +8,14 @@ import android.app.Service;
 import android.content.Context;
 import android.content.Intent;
 import android.content.res.Resources;
+import android.net.Uri;
 import android.net.wifi.WifiManager;
 import android.os.Binder;
 import android.os.Build;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.PowerManager;
+import android.provider.Settings;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -203,7 +205,31 @@ public final class TermuxService extends Service implements AppShell.AppShellCli
     /** Make service run in foreground mode. */
     private void runStartForeground() {
         setupNotificationChannel();
-        startForeground(TermuxConstants.TERMUX_APP_NOTIFICATION_ID, buildNotification());
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            // Android 14+ requires foregroundServiceType to be specified
+            startForeground(TermuxConstants.TERMUX_APP_NOTIFICATION_ID, buildNotification(),
+                android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_SPECIAL_USE);
+        } else {
+            startForeground(TermuxConstants.TERMUX_APP_NOTIFICATION_ID, buildNotification());
+        }
+        // Request battery optimization exemption to mitigate phantom process killer on Android 12+
+        requestBatteryOptimizationExemption();
+    }
+
+    /** Request battery optimization exemption to prevent phantom process killer on Android 12+. */
+    private void requestBatteryOptimizationExemption() {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
+            try {
+                if (!PermissionUtils.checkIfBatteryOptimizationsDisabled(this)) {
+                    Logger.logInfo(LOG_TAG, "Battery optimization exemption not granted, requesting via PermissionUtils");
+                    PermissionUtils.requestDisableBatteryOptimizations(this);
+                } else {
+                    Logger.logDebug(LOG_TAG, "Battery optimization exemption already granted");
+                }
+            } catch (Exception e) {
+                Logger.logWarn(LOG_TAG, "Failed to request battery optimization exemption: " + e.getMessage());
+            }
+        }
     }
 
     /** Make service leave foreground mode. */

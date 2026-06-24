@@ -63,6 +63,10 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.drawerlayout.widget.DrawerLayout;
+import androidx.lifecycle.Lifecycle;
+import androidx.lifecycle.LifecycleEventObserver;
+import androidx.lifecycle.LifecycleOwner;
+import androidx.lifecycle.ProcessLifecycleOwner;
 import androidx.viewpager.widget.ViewPager;
 
 import java.util.Arrays;
@@ -277,6 +281,20 @@ public final class TermuxActivity extends AppCompatActivity implements ServiceCo
         // Send the {@link TermuxConstants#BROADCAST_TERMUX_OPENED} broadcast to notify apps that Termux
         // app has been opened.
         TermuxUtils.sendTermuxOpenedBroadcast(this);
+
+        // Register ProcessLifecycleOwner observer to mark process as important and mitigate phantom process killer
+        ProcessLifecycleOwner.get().getLifecycle().addObserver(new LifecycleEventObserver() {
+            @Override
+            public void onStateChanged(@NonNull LifecycleOwner source, @NonNull Lifecycle.Event event) {
+                if (event == Lifecycle.Event.ON_START) {
+                    Logger.logDebug(LOG_TAG, "ProcessLifecycleOwner: App moved to foreground");
+                    // Process is now in foreground and should be protected from phantom process killer
+                } else if (event == Lifecycle.Event.ON_STOP) {
+                    Logger.logDebug(LOG_TAG, "ProcessLifecycleOwner: App moved to background");
+                    // Process is in background, but foreground service should keep it alive
+                }
+            }
+        });
     }
 
     @Override

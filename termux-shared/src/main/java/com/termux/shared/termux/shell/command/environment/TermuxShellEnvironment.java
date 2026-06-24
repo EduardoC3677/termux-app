@@ -35,7 +35,37 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
 
 
     /** Init {@link TermuxShellEnvironment} constants and caches. */
-    public synchronized static void init(@NonNull Context currentPackageContext) {
+    /**
+     * Get the default shell executable path.
+     * For debian-proot variant, returns the start-debian.sh script.
+     * For other variants, returns the standard Termux shell path.
+     */
+    @NonNull
+    public static String getDefaultShellExecutable() {
+        if (TermuxBootstrap.isAppPackageVariantDebianProot()) {
+            return TermuxConstants.DEBIAN_START_SCRIPT_PATH;
+        }
+        return TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/login";
+    }
+
+    /**
+     * Setup the shell command arguments for the default shell.
+     * For debian-proot, ensures start-debian.sh is executed properly.
+     */
+    @NonNull
+    public static String[] setupDefaultShellCommand() {
+        String shellPath = getDefaultShellExecutable();
+        if (TermuxBootstrap.isAppPackageVariantDebianProot()) {
+            // For Debian proot, we execute the start script via bash
+            return new String[]{
+                TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/bash",
+                shellPath
+            };
+        }
+        return new String[]{shellPath};
+    }
+
+    public static void init(@NonNull Context currentPackageContext) {
         TermuxAppShellEnvironment.setTermuxAppEnvironment(currentPackageContext);
     }
 
@@ -81,7 +111,16 @@ public class TermuxShellEnvironment extends AndroidShellEnvironment {
         // If failsafe is not enabled, then we keep default PATH and TMPDIR so that system binaries can be used
         if (!isFailSafe) {
             environment.put(ENV_TMPDIR, TermuxConstants.TERMUX_TMP_PREFIX_DIR_PATH);
-            if (TermuxBootstrap.isAppPackageVariantAPTAndroid5()) {
+            
+            // Special handling for debian-proot variant
+            if (TermuxBootstrap.isAppPackageVariantDebianProot()) {
+                // For Debian proot, set up environment for running Debian binaries
+                environment.put(ENV_PATH, TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + ":/usr/bin:/bin:/usr/sbin:/sbin");
+                environment.put("DEBIAN_ROOTFS", TermuxConstants.DEBIAN_ROOTFS_DIR_PATH);
+                environment.put("PROOT_NO_SECCOMP", "1"); // Disable seccomp for better compatibility
+                // Keep LD_LIBRARY_PATH for Termux binaries but Debian will use its own libs
+                environment.put(ENV_LD_LIBRARY_PATH, TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH);
+            } else if (TermuxBootstrap.isAppPackageVariantAPTAndroid5()) {
                 // Termux in android 5/6 era shipped busybox binaries in applets directory
                 environment.put(ENV_PATH, TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + ":" + TermuxConstants.TERMUX_BIN_PREFIX_DIR_PATH + "/applets");
                 environment.put(ENV_LD_LIBRARY_PATH, TermuxConstants.TERMUX_LIB_PREFIX_DIR_PATH);

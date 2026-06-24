@@ -653,6 +653,28 @@ public final class TermuxConstants {
 
 
 
+    /** Debian proot rootfs directory path */
+    public static final String DEBIAN_ROOTFS_DIR_PATH = TERMUX_FILES_DIR_PATH + "/debian-rootfs"; // Default: "/data/data/com.termux/files/debian-rootfs"
+    /** Debian proot rootfs directory */
+    public static final File DEBIAN_ROOTFS_DIR = new File(DEBIAN_ROOTFS_DIR_PATH);
+
+    /** Debian proot start script path */
+    public static final String DEBIAN_START_SCRIPT_PATH = TERMUX_BIN_PREFIX_DIR_PATH + "/start-debian.sh"; // Default: "/data/data/com.termux/files/usr/bin/start-debian.sh"
+    /** Debian proot start script */
+    public static final File DEBIAN_START_SCRIPT = new File(DEBIAN_START_SCRIPT_PATH);
+
+    /** Debian proot staging directory path */
+    public static final String DEBIAN_STAGING_DIR_PATH = TERMUX_FILES_DIR_PATH + "/debian-staging"; // Default: "/data/data/com.termux/files/debian-staging"
+    /** Debian proot staging directory */
+    public static final File DEBIAN_STAGING_DIR = new File(DEBIAN_STAGING_DIR_PATH);
+
+    /** Debian proot first-run marker file path */
+    public static final String DEBIAN_SETUP_COMPLETE_MARKER_PATH = DEBIAN_ROOTFS_DIR_PATH + "/.setup_complete"; // Default: "/data/data/com.termux/files/debian-rootfs/.setup_complete"
+    /** Debian proot first-run marker file */
+    public static final File DEBIAN_SETUP_COMPLETE_MARKER = new File(DEBIAN_SETUP_COMPLETE_MARKER_PATH);
+
+
+
     /** Termux app $HOME directory path */
     public static final String TERMUX_HOME_DIR_PATH = TERMUX_FILES_DIR_PATH + "/home"; // Default: "/data/data/com.termux/files/home"
     /** Termux app $HOME directory */

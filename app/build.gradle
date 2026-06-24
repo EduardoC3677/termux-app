@@ -8,7 +8,7 @@ ext {
     // crash at startup.
     // Bootstrap of a different variant must not be manually installed by the user after app installation
     // by replacing $PREFIX since app code is dependant on the variant used to build the APK.
-    // Currently supported values are: [ "apt-android-7" "apt-android-5" ]
+    // Currently supported values are: [ "apt-android-7" "apt-android-5" "debian-proot" ]
     packageVariant = System.getenv("TERMUX_PACKAGE_VARIANT") ?: "apt-android-7" // Default: "apt-android-7"
 }
 
@@ -26,6 +26,7 @@ android {
         implementation "androidx.annotation:annotation:1.9.0"
         implementation "androidx.core:core:1.13.1"
         implementation "androidx.drawerlayout:drawerlayout:1.2.0"
+        implementation "androidx.lifecycle:lifecycle-process:2.7.0"
         implementation "androidx.preference:preference:1.2.1"
         implementation "androidx.viewpager:viewpager:1.0.0"
         implementation "com.google.android.material:material:1.12.0"
@@ -230,6 +231,14 @@ task downloadBootstraps() {
             downloadBootstrap("arm", "26bfb45304c946170db69108e5eb6e3641aad751406ce106c80df80cad2eccf8", version)
             downloadBootstrap("i686", "46dcfeb5eef67ba765498db9fe4c50dc4690805139aa0dd141a9d8ee0693cd27", version)
             downloadBootstrap("x86_64", "615b590679ee6cd885b7fd2ff9473c845e920f9b422f790bb158c63fe42b8481", version)
+        } else if (packageVariant == "debian-proot") {
+            // Debian proot bootstrap - downloads both Termux prefix and Debian rootfs
+            def version = "2026.06.24-r1" + "%2B" + "debian.proot"
+            // TODO: Update these checksums with actual values from your bootstrap build
+            downloadBootstrap("aarch64", "PLACEHOLDER_SHA256_FOR_AARCH64_DEBIAN_PROOT", version)
+            downloadBootstrap("arm", "PLACEHOLDER_SHA256_FOR_ARM_DEBIAN_PROOT", version)
+            downloadBootstrap("i686", "PLACEHOLDER_SHA256_FOR_I686_DEBIAN_PROOT", version)
+            downloadBootstrap("x86_64", "PLACEHOLDER_SHA256_FOR_X86_64_DEBIAN_PROOT", version)
         } else {
             throw new GradleException("Unsupported TERMUX_PACKAGE_VARIANT \"" + packageVariant + "\"")
         }

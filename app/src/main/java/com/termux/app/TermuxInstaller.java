@@ -19,6 +19,7 @@ import com.termux.shared.logger.Logger;
 import com.termux.shared.markdown.MarkdownUtils;
 import com.termux.shared.errors.Error;
 import com.termux.shared.android.PackageUtils;
+import com.termux.shared.termux.TermuxBootstrap;
 import com.termux.shared.termux.TermuxConstants;
 import com.termux.shared.termux.TermuxUtils;
 import com.termux.shared.termux.shell.command.environment.TermuxShellEnvironment;
@@ -107,6 +108,11 @@ final class TermuxInstaller {
             if (TermuxFileUtils.isTermuxPrefixDirectoryEmpty()) {
                 Logger.logInfo(LOG_TAG, "The termux prefix directory \"" + TERMUX_PREFIX_DIR_PATH + "\" exists but is empty or only contains specific unimportant files.");
             } else {
+                // For debian-proot variant, check if we need to setup the Debian rootfs
+                if (TermuxBootstrap.isAppPackageVariantDebianProot()) {
+                    setupDebianRootfsIfNeeded(activity, whenDone);
+                    return;
+                }
                 whenDone.run();
                 return;
             }
@@ -373,6 +379,125 @@ final class TermuxInstaller {
 
     private static Error ensureDirectoryExists(File directory) {
         return FileUtils.createDirectoryFile(directory.getAbsolutePath());
+    }
+
+    /**
+     * Setup Debian rootfs if this is the first run for debian-proot variant.
+     * Extracts the Debian bootstrap zip and creates the necessary directory structure.
+     */
+    private static void setupDebianRootfsIfNeeded(final Activity activity, final Runnable whenDone) {
+        // Check if Debian rootfs has already been set up
+        if (FileUtils.fileExists(TermuxConstants.DEBIAN_SETUP_COMPLETE_MARKER_PATH, false)) {
+            Logger.logInfo(LOG_TAG, "Debian rootfs already set up, skipping extraction.");
+            whenDone.run();
+            return;
+        }
+
+        Logger.logInfo(LOG_TAG, "First run detected for debian-proot variant, setting up Debian rootfs.");
+
+        final ProgressDialog progress = ProgressDialog.show(activity, null, 
+            "Setting up Debian environment...", true, false);
+
+        new Thread() {
+            @Override
+            public void run() {
+                try {
+                    Error error;
+
+                    // Delete debian staging directory if it exists
+                    error = FileUtils.deleteFile("debian staging directory", 
+                        TermuxConstants.DEBIAN_STAGING_DIR_PATH, true);
+                    if (error != null) {
+                        showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error));
+                        return;
+                    }
+
+                    // Create debian staging directory
+                    error = FileUtils.createDirectoryFile(TermuxConstants.DEBIAN_STAGING_DIR_PATH);
+                    if (error != null) {
+                        showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error));
+                        return;
+                    }
+
+                    // Create debian rootfs directory if it doesn't exist
+                    error = FileUtils.createDirectoryFile(TermuxConstants.DEBIAN_ROOTFS_DIR_PATH);
+                    if (error != null) {
+                        showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error));
+                        return;
+                    }
+
+                    Logger.logInfo(LOG_TAG, "Extracting Debian bootstrap to staging directory \"" + 
+                        TermuxConstants.DEBIAN_STAGING_DIR_PATH + "\".");
+
+                    final byte[] buffer = new byte[8096];
+                    final byte[] zipBytes = loadZipBytes();
+
+                    try (ZipInputStream zipInput = new ZipInputStream(new ByteArrayInputStream(zipBytes))) {
+                        ZipEntry zipEntry;
+                        while ((zipEntry = zipInput.getNextEntry()) != null) {
+                            String zipEntryName = zipEntry.getName();
+                            
+                            // Skip SYMLINKS.txt for now (handle separately if needed)
+                            if (zipEntryName.equals("SYMLINKS.txt")) {
+                                continue;
+                            }
+
+                            File targetFile = new File(TermuxConstants.DEBIAN_STAGING_DIR_PATH, zipEntryName);
+                            boolean isDirectory = zipEntry.isDirectory();
+
+                            error = ensureDirectoryExists(isDirectory ? targetFile : targetFile.getParentFile());
+                            if (error != null) {
+                                showBootstrapErrorDialog(activity, whenDone, Error.getErrorMarkdownString(error));
+                                return;
+                            }
+
+                            if (!isDirectory) {
+                                try (FileOutputStream outStream = new FileOutputStream(targetFile)) {
+                                    int readBytes;
+                                    while ((readBytes = zipInput.read(buffer)) != -1)
+                                        outStream.write(buffer, 0, readBytes);
+                                }
+                                
+                                // Set execute permissions for scripts and binaries
+                                if (zipEntryName.endsWith(".sh") || zipEntryName.startsWith("bin/") || 
+                                    zipEntryName.startsWith("usr/bin/")) {
+                                    Os.chmod(targetFile.getAbsolutePath(), 0700);
+                                }
+                            }
+                        }
+                    }
+
+                    Logger.logInfo(LOG_TAG, "Moving Debian staging to rootfs directory.");
+
+                    // Move staging to final location
+                    if (!TermuxConstants.DEBIAN_STAGING_DIR.renameTo(TermuxConstants.DEBIAN_ROOTFS_DIR)) {
+                        throw new RuntimeException("Moving debian staging to rootfs directory failed");
+                    }
+
+                    // Create setup complete marker
+                    File markerFile = TermuxConstants.DEBIAN_SETUP_COMPLETE_MARKER;
+                    if (!markerFile.createNewFile()) {
+                        Logger.logWarn(LOG_TAG, "Failed to create setup complete marker file");
+                    }
+
+                    Logger.logInfo(LOG_TAG, "Debian rootfs setup completed successfully.");
+
+                    activity.runOnUiThread(whenDone);
+
+                } catch (final Exception e) {
+                    showBootstrapErrorDialog(activity, whenDone, 
+                        Logger.getStackTracesMarkdownString(null, Logger.getStackTracesStringArray(e)));
+                } finally {
+                    activity.runOnUiThread(() -> {
+                        try {
+                            progress.dismiss();
+                        } catch (RuntimeException e) {
+                            // Activity already dismissed - ignore.
+                        }
+                    });
+                }
+            }
+        }.start();
     }
 
     public static byte[] loadZipBytes() {

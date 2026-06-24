@@ -108,6 +108,11 @@ public class TermuxBootstrap {
         return PackageVariant.APT_ANDROID_5.equals(TERMUX_APP_PACKAGE_VARIANT);
     }
 
+    /** Is {@link PackageVariant#DEBIAN_PROOT} set as {@link #TERMUX_APP_PACKAGE_VARIANT}. */
+    public static boolean isAppPackageVariantDebianProot() {
+        return PackageVariant.DEBIAN_PROOT.equals(TERMUX_APP_PACKAGE_VARIANT);
+    }
+
     ///** Is {@link PackageVariant#TAPM_ANDROID_7} set as {@link #TERMUX_APP_PACKAGE_VARIANT}. */
     //public static boolean isAppPackageVariantTAPMAndroid7() {
     //    return PackageVariant.TAPM_ANDROID_7.equals(TERMUX_APP_PACKAGE_VARIANT);
@@ -128,7 +133,13 @@ public class TermuxBootstrap {
          * https://wiki.debian.org/Apt
          * https://wiki.debian.org/deb
          */
-        APT("apt");
+        APT("apt"),
+
+        /**
+         * Debian package manager for proot-based Debian rootfs.
+         * Uses proot to run a full Debian GNU/Linux environment.
+         */
+        DEBIAN("debian");
 
         ///**
         // * Termux Android Package Manager (TAPM) for managing termux apk package files.
@@ -180,7 +191,10 @@ public class TermuxBootstrap {
         APT_ANDROID_7("apt-android-7"),
 
         /** {@link PackageManager#APT} variant for Android 5+. */
-        APT_ANDROID_5("apt-android-5");
+        APT_ANDROID_5("apt-android-5"),
+
+        /** {@link PackageManager#DEBIAN} variant using proot for Debian rootfs. */
+        DEBIAN_PROOT("debian-proot");
 
         ///** {@link PackageManager#TAPM} variant for Android 7+. */
         //TAPM_ANDROID_7("tapm-android-7");
